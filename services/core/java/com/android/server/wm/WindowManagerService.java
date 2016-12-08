@@ -770,6 +770,8 @@ public class WindowManagerService extends IWindowManager.Stub
 
     private WindowContentFrameStats mTempWindowRenderStats;
 
+    AnboxPlatformServiceProxy mPlatformServiceProxy;
+
     final class DragInputEventReceiver extends InputEventReceiver {
         // Set, if stylus button was down at the start of the drag.
         private boolean mStylusButtonDownAtStart;
@@ -1030,6 +1032,9 @@ public class WindowManagerService extends IWindowManager.Stub
                 };
         mAppOps.startWatchingMode(AppOpsManager.OP_SYSTEM_ALERT_WINDOW, null, opListener);
         mAppOps.startWatchingMode(AppOpsManager.OP_TOAST_WINDOW, null, opListener);
+
+        // This will setup the proxy instance we use to talk with the Anbox host side
+        mPlatformServiceProxy = new AnboxPlatformServiceProxy(this, null);
 
         // Get persisted window scale setting
         mWindowAnimationScaleSetting = Settings.Global.getFloat(context.getContentResolver(),
@@ -2582,6 +2587,9 @@ public class WindowManagerService extends IWindowManager.Stub
         }
 
         mPendingRemove.remove(win);
+
+        mPlatformServiceProxy.removeWindow(win);
+
         mResizingWindows.remove(win);
         updateNonSystemOverlayWindowsVisibilityIfNeeded(win, false /* surfaceShown */);
         mWindowsChanged = true;
@@ -6074,19 +6082,8 @@ public class WindowManagerService extends IWindowManager.Stub
                 } catch (RemoteException ex) {
                     Slog.e(TAG_WM, "Boot completed: SurfaceFlinger is dead!");
                 }
-                try {
-                    IBinder anbox = ServiceManager.getService("anbox.PlatformService");
-                    if (anbox != null) {
-                        Slog.i(TAG, "********* TELLING ANBOX WE ARE BOOTED!");
-                        Parcel data = Parcel.obtain();
-                        data.writeInterfaceToken("anbox.IPlatformService");
-                        anbox.transact(IBinder.FIRST_CALL_TRANSACTION, // BOOT_FINISHED
-                                       data, null, 0);
-                        data.recycle();
-                    }
-                } catch (RemoteException ex) {
-                    Slog.e(TAG, "Boot completed: Anboxd is dead!");
-                }
+                // Let anbox host service know that we have successfully booted
+                mPlatformServiceProxy.notifyBootFinished();
                 mBootAnimationStopped = true;
             }
 

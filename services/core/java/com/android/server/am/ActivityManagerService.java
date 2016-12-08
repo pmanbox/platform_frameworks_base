@@ -57,6 +57,7 @@ import com.android.server.pm.Installer;
 import com.android.server.statusbar.StatusBarManagerInternal;
 import com.android.server.vr.VrManagerInternal;
 import com.android.server.wm.WindowManagerService;
+import com.android.server.wm.AnboxPlatformServiceProxy;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -1461,6 +1462,8 @@ public final class ActivityManagerService extends ActivityManagerNative
     WindowManagerService mWindowManager;
     final ActivityThread mSystemThread;
 
+    AnboxPlatformServiceProxy mPlatformServiceProxy = null;
+
     private final class AppDeathRecipient implements IBinder.DeathRecipient {
         final ProcessRecord mApp;
         final int mPid;
@@ -2651,6 +2654,9 @@ public final class ActivityManagerService extends ActivityManagerNative
                 "background", BROADCAST_BG_TIMEOUT, true);
         mBroadcastQueues[0] = mFgBroadcastQueue;
         mBroadcastQueues[1] = mBgBroadcastQueue;
+
+        // Our proxy to the Anbox host side
+        mPlatformServiceProxy = new AnboxPlatformServiceProxy(null, null);
 
         mServices = new ActiveServices(this);
         mProviderMap = new ProviderMap(this);
@@ -9401,6 +9407,8 @@ public final class ActivityManagerService extends ActivityManagerNative
 
                 task.setLastThumbnailLocked(thumbnail);
                 task.freeLastThumbnail();
+
+                mPlatformServiceProxy.notifyTaskAdded(task.taskId);
 
                 return task.taskId;
             }
