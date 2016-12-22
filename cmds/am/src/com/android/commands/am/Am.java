@@ -114,6 +114,7 @@ public class Am extends BaseCommand {
     private int mSamplingInterval;
     private boolean mAutoStop;
     private int mStackId;
+    private Rect mLaunchBounds;
 
     /**
      * Command-line entry point.
@@ -131,7 +132,8 @@ public class Am extends BaseCommand {
                 "usage: am [subcommand] [options]\n" +
                 "usage: am start [-D] [-N] [-W] [-P <FILE>] [--start-profiler <FILE>]\n" +
                 "               [--sampling INTERVAL] [-R COUNT] [-S]\n" +
-                "               [--track-allocation] [--user <USER_ID> | current] <INTENT>\n" +
+                "               [--track-allocation] [--user <USER_ID> | current]\n" +
+                "               [--launch-bounds <LEFT,TOP,RIGHT,BOTTOM>] <INTENT>\n" +
                 "       am startservice [--user <USER_ID> | current] <INTENT>\n" +
                 "       am stopservice [--user <USER_ID> | current] <INTENT>\n" +
                 "       am force-stop [--user <USER_ID> | all | current] <PACKAGE>\n" +
@@ -493,6 +495,7 @@ public class Am extends BaseCommand {
         mAutoStop = false;
         mUserId = defUser;
         mStackId = INVALID_STACK_ID;
+        mLaunchBounds = null;
 
         return Intent.parseCommandArgs(mArgs, new Intent.CommandOptionHandler() {
             @Override
@@ -523,6 +526,8 @@ public class Am extends BaseCommand {
                     mReceiverPermission = nextArgRequired();
                 } else if (opt.equals("--stack")) {
                     mStackId = Integer.parseInt(nextArgRequired());
+                } else if (opt.equals("--launch-bounds")) {
+                    mLaunchBounds = getBounds();
                 } else {
                     return false;
                 }
@@ -633,6 +638,11 @@ public class Am extends BaseCommand {
             if (mStackId != INVALID_STACK_ID) {
                 options = ActivityOptions.makeBasic();
                 options.setLaunchStackId(mStackId);
+            }
+            if (mLaunchBounds != null) {
+                if (options == null)
+                    options = ActivityOptions.makeBasic();
+                options.setLaunchBounds(mLaunchBounds);
             }
             if (mWaitOption) {
                 result = mAm.startActivityAndWait(null, null, intent, mimeType,
